@@ -97,7 +97,7 @@ void platform_init(void)
 	initialise_monitor_handles();
 #endif
 
-	rcc_clock_setup_pll(&rcc_hse_configs[RCC_CLOCK_HSE8_72MHZ]);
+	rcc_clock_setup_pll(&rcc_hse_configs[RCC_CLOCK_HSE16_72MHZ]);
 
 	/* Enable peripherals */
 	rcc_periph_clock_enable(RCC_USB);
