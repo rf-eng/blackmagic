@@ -39,6 +39,7 @@ SRC =			\
 	lpc17xx.c	\
 	lpc15xx.c	\
 	lpc43xx.c	\
+	lpc546xx.c	\
 	kinetis.c	\
 	main.c		\
 	morse.c		\
@@ -118,7 +119,7 @@ clean:	host_clean
 
 all_platforms:
 	$(Q)set -e ;\
-	mkdir -p artifacts/$(shell git describe --always) ;\
+	mkdir -p artifacts/$(shell git describe --always --dirty --tags) ;\
 	echo "<html><body><ul>" > artifacts/index.html ;\
 	for i in platforms/*/Makefile.inc ; do \
 		export DIRNAME=`dirname $$i` ;\
@@ -139,11 +140,11 @@ all_platforms:
 		fi ;\
 	done ;\
 	echo "</ul></body></html>" >> artifacts/index.html ;\
-	cp artifacts/*.bin artifacts/$(shell git describe --always)
+	cp artifacts/*.bin artifacts/$(shell git describe --always --dirty --tags)
 
 command.c: include/version.h
 
 include/version.h: FORCE
 	$(Q)echo " GIT include/version.h"
-	$(Q)echo "#define FIRMWARE_VERSION \"$(shell git describe --always --dirty)\"" > $@
+	$(Q)echo "#define FIRMWARE_VERSION \"$(shell git describe --always --dirty --tags)\"" > $@
 -include *.d

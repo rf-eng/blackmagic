@@ -116,12 +116,49 @@ static void stm32f1_add_flash(target *t,
 	target_add_flash(t, f);
 }
 
+/**
+    \brief identify the correct gd32 f1/f3 chip
+    GD32 : STM32 compatible chip
+*/
+bool gd32f1_probe(target *t)
+{
+	uint16_t stored_idcode = t->idcode;
+	// M3 & M4 & riscV only afaik
+	t->idcode = target_mem_read32(t, DBGMCU_IDCODE) & 0xfff;
+	uint32_t signature= target_mem_read32(t, FLASHSIZE);
+	uint32_t flashSize=signature & 0xFFFF;
+	uint32_t ramSize=signature >>16 ;
+	switch(t->idcode) {
+	case 0x414:  /* Gigadevice gd32f303 */
+		t->driver = "GD32F3";
+		break;
+	case 0x410:  /* Gigadevice gd32f103 */
+        t->driver = "GD32F1";
+		break;
+	default:
+        t->idcode = stored_idcode;
+		return false;
+	}
+	target_add_ram(t, 0x20000000, ramSize*1024);
+	stm32f1_add_flash(t, 0x8000000, flashSize*1024, 0x400);
+	target_add_commands(t, stm32f1_cmd_list, t->driver);
+	return true;
+}
+/**
+    \brief identify the stm32f1 chip
+*/
+
 bool stm32f1_probe(target *t)
 {
+	uint16_t stored_idcode = t->idcode;
+	if ((t->cpuid & CPUID_PARTNO_MASK) == CORTEX_M0)
+		t->idcode = target_mem_read32(t, DBGMCU_IDCODE_F0) & 0xfff;
+	else
+		t->idcode = target_mem_read32(t, DBGMCU_IDCODE) & 0xfff;
 	size_t flash_size;
 	size_t block_size = 0x400;
-	t->idcode = target_mem_read32(t, DBGMCU_IDCODE) & 0xfff;
 	switch(t->idcode) {
+	case 0x29b: /* CS clone */
 	case 0x410:  /* Medium density */
 	case 0x412:  /* Low density */
 	case 0x420:  /* Value Line, Low-/Medium density */
@@ -167,10 +204,6 @@ bool stm32f1_probe(target *t)
 		stm32f1_add_flash(t, 0x8000000, 0x80000, 0x800);
 		target_add_commands(t, stm32f1_cmd_list, "STM32F3");
 		return true;
-	}
-
-	t->idcode = target_mem_read32(t, DBGMCU_IDCODE_F0) & 0xfff;
-	switch(t->idcode) {
 	case 0x444:  /* STM32F03 RM0091 Rev.7, STM32F030x[4|6] RM0360 Rev. 4*/
 		t->driver = "STM32F03";
 		flash_size = 0x8000;
@@ -194,6 +227,7 @@ bool stm32f1_probe(target *t)
 		block_size = 0x800;
 		break;
 	default:     /* NONE */
+		t->idcode = stored_idcode;
 		return false;
 	}
 

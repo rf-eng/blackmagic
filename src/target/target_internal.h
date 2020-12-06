@@ -111,7 +111,8 @@ struct target_s {
 
 	/* target-defined options */
 	unsigned target_options;
-	uint32_t idcode;
+	uint16_t t_designer;
+	uint16_t idcode;
 	uint32_t target_storage;
 
 	struct target_ram *ram;
@@ -119,7 +120,8 @@ struct target_s {
 
 	/* Other stuff */
 	const char *driver;
-	const char *core;
+	uint32_t cpuid;
+	char *core;
 	char cmdline[MAX_CMDLINE];
 	target_addr heapinfo[4];
 	struct target_command_s *commands;
@@ -167,6 +169,7 @@ int tc_system(target *t, target_addr cmd, size_t cmdlen);
 /* Probe for various targets.
  * Actual functions implemented in their respective drivers.
  */
+bool gd32f1_probe(target *t);
 bool stm32f1_probe(target *t);
 bool stm32f4_probe(target *t);
 bool stm32h7_probe(target *t);
@@ -178,6 +181,7 @@ bool lpc11xx_probe(target *t);
 bool lpc15xx_probe(target *t);
 bool lpc17xx_probe(target *t);
 bool lpc43xx_probe(target *t);
+bool lpc546xx_probe(target *t);
 bool sam3x_probe(target *t);
 bool sam4l_probe(target *t);
 bool nrf51_probe(target *t);

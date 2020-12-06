@@ -36,6 +36,7 @@
 #include "ftdi_bmp.h"
 #include "jlink.h"
 #include "cmsis_dap.h"
+#include "version.h"
 
 #define VENDOR_ID_STLINK         0x0483
 #define PRODUCT_ID_STLINK_MASK   0xffe0
@@ -111,12 +112,16 @@ static int find_debuggers(	BMP_CL_OPTIONS_t *cl_opts,bmp_info_t *info)
 			libusb_free_device_list(devs, 1);
 			continue;
 		}
+		/* Exclude hubs from testing. Probably more classes could be excluded here!*/
+		if (desc.bDeviceClass == LIBUSB_CLASS_HUB) {
+			continue;
+		}
 		libusb_device_handle *handle;
 		res = libusb_open(dev, &handle);
 		if (res != LIBUSB_SUCCESS) {
 			if (!access_problems) {
-				DEBUG_INFO("INFO: Open USB %04x:%04x failed\n",
-						   desc.idVendor, desc.idProduct);
+				DEBUG_INFO("INFO: Open USB %04x:%04x class %2x failed\n",
+						   desc.idVendor, desc.idProduct, desc.bDeviceClass);
 				access_problems = true;
 			}
 			continue;
@@ -161,9 +166,13 @@ static int find_debuggers(	BMP_CL_OPTIONS_t *cl_opts,bmp_info_t *info)
 		}
 		/* Either serial and/or ident_string match or are not given.
 		 * Check type.*/
-		if ((desc.idVendor == VENDOR_ID_BMP) &&
-			(desc.idProduct == PRODUCT_ID_BMP)) {
-			type = BMP_TYPE_BMP;
+		if (desc.idVendor == VENDOR_ID_BMP) {
+			if (desc.idProduct == PRODUCT_ID_BMP) {
+				type = BMP_TYPE_BMP;
+			} else if (desc.idProduct == PRODUCT_ID_BMP_BL) {
+				DEBUG_WARN("BMP in botloader mode found. Restart or reflash!\n");
+				continue;
+			}
 		} else if ((strstr(manufacturer, "CMSIS")) || (strstr(product, "CMSIS"))) {
 			type = BMP_TYPE_CMSIS_DAP;
 		} else if (desc.idVendor ==  VENDOR_ID_STLINK) {
@@ -263,9 +272,10 @@ static int find_debuggers(	BMP_CL_OPTIONS_t *cl_opts,bmp_info_t *info)
 	return (found_debuggers == 1) ? 0 : -1;
 }
 
+static	BMP_CL_OPTIONS_t cl_opts;
+
 void platform_init(int argc, char **argv)
 {
-	BMP_CL_OPTIONS_t cl_opts = {0};
 	cl_opts.opt_idstring = "Blackmagic PC-Hosted";
 	cl_init(&cl_opts, argc, argv);
 	atexit(exit_function);
@@ -293,14 +303,16 @@ void platform_init(int argc, char **argv)
 	} else if (find_debuggers(&cl_opts, &info)) {
 		exit(-1);
 	}
-	DEBUG_WARN("Using %04x:%04x %s %s %s\n", info.vid, info.pid, info.serial,
+	DEBUG_INFO("BMP hosted %s\n for ST-Link V2/3, CMSIS_DAP, JLINK and "
+			   "LIBFTDI/MPSSE\n", FIRMWARE_VERSION);
+	DEBUG_INFO("Using %04x:%04x %s %s\n %s\n", info.vid, info.pid, info.serial,
 		   info.manufacturer,
 		   info.product);
 	switch (info.bmp_type) {
 	case BMP_TYPE_BMP:
 		if (serial_open(&cl_opts, info.serial))
 			exit(-1);
-		remote_init(true);
+		remote_init();
 		break;
 	case BMP_TYPE_STLINKV2:
 		if (stlink_init( &info))
@@ -342,24 +354,26 @@ int platform_adiv5_swdp_scan(void)
 	{
 		target_list_free();
 		ADIv5_DP_t *dp = (void*)calloc(1, sizeof(*dp));
-		if (!stlink_enter_debug_swd(&info, dp)) {
+		if (stlink_enter_debug_swd(&info, dp)) {
+			free(dp);
+		} else {
 			adiv5_dp_init(dp);
 			if (target_list)
 				return 1;
 		}
-		free(dp);
 		break;
 	}
 	case BMP_TYPE_CMSIS_DAP:
 	{
 		target_list_free();
 		ADIv5_DP_t *dp = (void*)calloc(1, sizeof(*dp));
-		if (!dap_enter_debug_swd(dp)) {
+		if (dap_enter_debug_swd(dp)) {
+			free(dp);
+		} else {
 			adiv5_dp_init(dp);
 			if (target_list)
 				return 1;
 		}
-		free(dp);
 		break;
 	}
 	case BMP_TYPE_JLINK:
@@ -385,6 +399,12 @@ int platform_swdptap_init(void)
 		return -1;
 	}
 	return -1;
+}
+
+void platform_add_jtag_dev(int i, const jtag_dev_t *jtag_dev)
+{
+	if (info.bmp_type == BMP_TYPE_BMP)
+		remote_add_jtag_dev(i, jtag_dev);
 }
 
 int platform_jtag_scan(const uint8_t *lrlens)
@@ -426,6 +446,10 @@ void platform_adiv5_dp_defaults(ADIv5_DP_t *dp)
 {
 	switch (info.bmp_type) {
 	case BMP_TYPE_BMP:
+		if (cl_opts.opt_no_hl) {
+			DEBUG_WARN("Not using HL commands\n");
+			return;
+		}
 		return remote_adiv5_dp_defaults(dp);
 	case BMP_TYPE_STLINKV2:
 		return stlink_adiv5_dp_defaults(dp);

@@ -28,7 +28,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
+#include "version.h"
 #include "target.h"
 #include "target_internal.h"
 
@@ -116,14 +116,14 @@ static void bmp_munmap(struct mmap_data *map)
 static void cl_help(char **argv, BMP_CL_OPTIONS_t *opt)
 {
 	DEBUG_WARN("%s for: \n", opt->opt_idstring);
-	DEBUG_WARN("\tBMP Firmware, ST-Link V2/3, CMSIS_DAP, JLINK and "
-			   "LIBFTDI/MPSSE\n\n");
+	DEBUG_WARN("\tBMP hosted %s\n\t\tfor ST-Link V2/3, CMSIS_DAP, JLINK and "
+			   "LIBFTDI/MPSSE\n\n", FIRMWARE_VERSION);
 	DEBUG_WARN("Usage: %s [options]\n", argv[0]);
 	DEBUG_WARN("\t-h\t\t: This help.\n");
 	DEBUG_WARN("\t-v[bitmask]\t: Increasing verbosity. Bitmask:\n");
 	DEBUG_WARN("\t\t\t  1 = INFO, 2 = GDB, 4 = TARGET, 8 = PROBE, 16 = WIRE\n");
 	DEBUG_WARN("Probe selection arguments:\n");
-	DEBUG_WARN("\t-d \"path\"\t: Use serial device at \"path\"\n");
+	DEBUG_WARN("\t-d \"path\"\t: Use serial BMP device at \"path\"(Deprecated)\n");
 	DEBUG_WARN("\t-P <pos>\t: Use debugger found at position <pos>\n");
 	DEBUG_WARN("\t-n <num>\t: Use target device found at position <num>\n");
 	DEBUG_WARN("\t-s \"serial\"\t: Use dongle with (partial) "
@@ -143,6 +143,7 @@ static void cl_help(char **argv, BMP_CL_OPTIONS_t *opt)
 	DEBUG_WARN("\t-r\t\t: Read flash and write to binary file\n");
 	DEBUG_WARN("\t-p\t\t: Supplies power to the target (where applicable)\n");
 	DEBUG_WARN("\t-R\t\t: Reset device\n");
+	DEBUG_WARN("\t-H\t\t: Do not use high level commands (BMP-Remote)\n");
 	DEBUG_WARN("Flash operation modifiers options:\n");
 	DEBUG_WARN("\tDefault action with given file is to write to flash\n");
 	DEBUG_WARN("\t-a <addr>\t: Start flash operation at flash address <addr>\n"
@@ -157,7 +158,8 @@ void cl_init(BMP_CL_OPTIONS_t *opt, int argc, char **argv)
 	int c;
 	opt->opt_target_dev = 1;
 	opt->opt_flash_size = 16 * 1024 *1024;
-	while((c = getopt(argc, argv, "eEhv:d:s:I:c:CnltVta:S:jpP:rR")) != -1) {
+	opt->opt_flash_start = 0xffffffff;
+	while((c = getopt(argc, argv, "eEhHv:d:s:I:c:CnltVta:S:jpP:rR")) != -1) {
 		switch(c) {
 		case 'c':
 			if (optarg)
@@ -165,6 +167,9 @@ void cl_init(BMP_CL_OPTIONS_t *opt, int argc, char **argv)
 			break;
 		case 'h':
 			cl_help(argv, opt);
+			break;
+		case 'H':
+			opt->opt_no_hl = true;
 			break;
 		case 'v':
 			if (optarg)
@@ -184,6 +189,7 @@ void cl_init(BMP_CL_OPTIONS_t *opt, int argc, char **argv)
 			opt->external_resistor_swd = true;
 			break;
 		case 'd':
+			DEBUG_WARN("Deprecated!\n");
 			if (optarg)
 				opt->opt_device = optarg;
 			break;
@@ -261,9 +267,18 @@ void cl_init(BMP_CL_OPTIONS_t *opt, int argc, char **argv)
 static void display_target(int i, target *t, void *context)
 {
 	(void)context;
-	DEBUG_INFO("*** %2d   %c  %s %s\n", i, target_attached(t)?'*':' ',
-		  target_driver_name(t),
-		  (target_core_name(t)) ? target_core_name(t): "");
+	if (!strcmp(target_driver_name(t), "ARM Cortex-M")) {
+		DEBUG_INFO("***%2d%sUnknown %s Designer %3x Partno %3x %s\n",
+			  i, target_attached(t)?" * ":" ",
+			  target_driver_name(t),
+			  target_designer(t),
+			  target_idcode(t),
+			  (target_core_name(t)) ? target_core_name(t): "");
+	} else {
+		DEBUG_INFO("*** %2d   %c  %s %s\n", i, target_attached(t)?'*':' ',
+			  target_driver_name(t),
+			  (target_core_name(t)) ? target_core_name(t): "");
+	}
 }
 
 int cl_execute(BMP_CL_OPTIONS_t *opt)
@@ -283,8 +298,7 @@ int cl_execute(BMP_CL_OPTIONS_t *opt)
 	platform_srst_set_val(opt->opt_connect_under_reset);
 	if (opt->opt_mode == BMP_MODE_TEST)
 		DEBUG_INFO("Running in Test Mode\n");
-	if (platform_target_voltage())
-		DEBUG_INFO("Target voltage: %s Volt\n", platform_target_voltage());
+	DEBUG_INFO("Target voltage: %s Volt\n", platform_target_voltage());
 	if (opt->opt_usejtag) {
 		num_targets = platform_jtag_scan(NULL);
 	} else {
@@ -349,7 +363,7 @@ int cl_execute(BMP_CL_OPTIONS_t *opt)
 			break;
 		}
 	}
-	if (opt->opt_flash_start < flash_start)
+	if (opt->opt_flash_start == 0xffffffff)
 		opt->opt_flash_start = flash_start;
 	if (opt->opt_mode == BMP_MODE_TEST)
 		goto target_detach;
@@ -480,5 +494,6 @@ int cl_execute(BMP_CL_OPTIONS_t *opt)
   target_detach:
 	if (t)
 		target_detach(t);
+	target_list_free();
 	return res;
 }

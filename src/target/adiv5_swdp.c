@@ -38,20 +38,12 @@ int adiv5_swdp_scan(void)
 	uint32_t ack;
 
 	target_list_free();
-	ADIv5_DP_t *dp = (void*)calloc(1, sizeof(*dp));
-	if (!dp) {			/* calloc failed: heap exhaustion */
-		DEBUG_WARN("calloc: failed in %s\n", __func__);
-		return -1;
-	}
-
 #if PC_HOSTED == 1
 	if (platform_swdptap_init()) {
-		free(dp);
 		exit(-1);
 	}
 #else
 	if (swdptap_init()) {
-		free(dp);
 		return -1;
 	}
 #endif
@@ -70,12 +62,19 @@ int adiv5_swdp_scan(void)
 	 * allow the ack to be checked here. */
 	swd_proc.swdptap_seq_out(0xA5, 8);
 	ack = swd_proc.swdptap_seq_in(3);
-	if((ack != SWDP_ACK_OK) || swd_proc.swdptap_seq_in_parity(&dp->idcode, 32)) {
+	uint32_t idcode;
+	if((ack != SWDP_ACK_OK) || swd_proc.swdptap_seq_in_parity(&idcode, 32)) {
 		DEBUG_WARN("Read SW-DP IDCODE failed %1" PRIx32 "\n", ack);
-		free(dp);
 		return -1;
 	}
 
+	ADIv5_DP_t *dp = (void*)calloc(1, sizeof(*dp));
+	if (!dp) {			/* calloc failed: heap exhaustion */
+		DEBUG_WARN("calloc: failed in %s\n", __func__);
+		return -1;
+	}
+
+	dp->idcode = idcode;
 	dp->dp_read = firmware_swdp_read;
 	dp->error = firmware_swdp_error;
 	dp->low_access = firmware_swdp_low_access;
@@ -83,8 +82,6 @@ int adiv5_swdp_scan(void)
 
 	firmware_swdp_error(dp);
 	adiv5_dp_init(dp);
-	if (!target_list)
-		free(dp);
 	return target_list?1:0;
 }
 
@@ -146,6 +143,12 @@ uint32_t firmware_swdp_low_access(ADIv5_DP_t *dp, uint8_t RnW,
 	do {
 		swd_proc.swdptap_seq_out(request, 8);
 		ack = swd_proc.swdptap_seq_in(3);
+		if (ack == SWDP_ACK_FAULT) {
+			/* On fault, abort() and repeat the command once.*/
+			firmware_swdp_error(dp);
+			swd_proc.swdptap_seq_out(request, 8);
+			ack = swd_proc.swdptap_seq_in(3);
+		}
 	} while (ack == SWDP_ACK_WAIT && !platform_timeout_is_expired(&timeout));
 
 	if (ack == SWDP_ACK_WAIT)
@@ -164,19 +167,17 @@ uint32_t firmware_swdp_low_access(ADIv5_DP_t *dp, uint8_t RnW,
 			raise_exception(EXCEPTION_ERROR, "SWDP Parity error");
 	} else {
 		swd_proc.swdptap_seq_out_parity(value, 32);
-		/* RM0377 Rev. 8 Chapter 27.5.4 for STM32L0x1 states:
-		 * Because of the asynchronous clock domains SWCLK and HCLK,
-		 * two extra SWCLK cycles are needed after a write transaction
-		 * (after the parity bit) to make the write effective
-		 * internally. These cycles should be applied while driving
-		 * the line low (IDLE state)
-		 * This is particularly important when writing the CTRL/STAT
-		 * for a power-up request. If the next transaction (requiring
-		 * a power-up) occurs immediately, it will fail.
+		/* ARM Debug Interface Architecture Specification ADIv5.0 to ADIv5.2
+		 * tells to clock the data through SW-DP to either :
+		 * - immediate start a new transaction
+		 * - continue to drive idle cycles
+		 * - or clock at least 8 idle cycles
+		 *
+		 * Implement last option to favour correctness over
+		 *   slight speed decrease
 		 */
-		swd_proc.swdptap_seq_out(0, 2);
+		swd_proc.swdptap_seq_out(0, 8);
 	}
-
 	return response;
 }
 

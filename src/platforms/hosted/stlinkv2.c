@@ -31,6 +31,7 @@
 #include "exception.h"
 #include "jtag_devs.h"
 #include "target.h"
+#include "cortexm.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -348,7 +349,8 @@ static int stlink_send_recv_retry(uint8_t *txbuf, size_t txsize,
 		if (res == STLINK_ERROR_OK)
 			return res;
 		uint32_t now = platform_time_ms();
-		if (((now - start) > 1000) || (res != STLINK_ERROR_WAIT)) {
+		if (((now - start) > cortexm_wait_timeout) ||
+			(res != STLINK_ERROR_WAIT)) {
 			DEBUG_WARN("write_retry failed. ");
 			return res;
 		}
@@ -434,7 +436,8 @@ static void stlink_version(bmp_info_t *info)
 			Stlink.ver_swim = (version >> 0) & 0x3f;
 		}
 	}
-	DEBUG_INFO("V%dJ%d",Stlink.ver_stlink, Stlink.ver_jtag);
+	DEBUG_INFO("STLink firmware version: V%dJ%d",Stlink.ver_stlink,
+			   Stlink.ver_jtag);
 	if (Stlink.ver_hw == 30) {
 		DEBUG_INFO("M%dB%dS%d", Stlink.ver_mass, Stlink.ver_bridge, Stlink.ver_swim);
 	} else if (Stlink.ver_hw == 20) {
@@ -829,8 +832,8 @@ static bool stlink_ap_setup(int ap)
 		ap,
 	};
 	uint8_t data[2];
-	send_recv(info.usb_link, cmd, 16, data, 2);
 	DEBUG_PROBE("Open AP %d\n", ap);
+	stlink_send_recv_retry(cmd, 16, data, 2);
 	int res = stlink_usb_error_check(data, true);
 	if (res) {
 		if (Stlink.ver_hw == 30) {
@@ -1041,13 +1044,13 @@ int jtag_scan_stlinkv2(bmp_info_t *info, const uint8_t *irlens)
 	jtag_dev_count = stlink_read_idcodes(info, idcodes);
 	/* Check for known devices and handle accordingly */
 	for(int i = 0; i < jtag_dev_count; i++)
-		jtag_devs[i].idcode = idcodes[i];
+		jtag_devs[i].jd_idcode = idcodes[i];
 	for(int i = 0; i < jtag_dev_count; i++)
 		for(int j = 0; dev_descr[j].idcode; j++)
-			if((jtag_devs[i].idcode & dev_descr[j].idmask) ==
+			if((jtag_devs[i].jd_idcode & dev_descr[j].idmask) ==
 			   dev_descr[j].idcode) {
 				if(dev_descr[j].handler)
-					dev_descr[j].handler(&jtag_devs[i]);
+					dev_descr[j].handler(i, dev_descr[j].idcode);
 				break;
 			}
 

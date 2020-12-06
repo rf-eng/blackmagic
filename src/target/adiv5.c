@@ -36,6 +36,13 @@
  * are consistently named and accessible when needed in the codebase.
  */
 
+/* Values from ST RM0436 (STM32MP157), 66.9 APx_IDR
+ * and ST RM0438 (STM32L5) 52.3.1, AP_IDR */
+#define ARM_AP_TYPE_AHB  1
+#define ARM_AP_TYPE_APB  3
+#define ARM_AP_TYPE_AXI  4
+#define ARM_AP_TYPE_AHB5 5
+
 /* ROM table CIDR values */
 #define CIDR0_OFFSET    0xFF0 /* DBGCID0 */
 #define CIDR1_OFFSET    0xFF4 /* DBGCID1 */
@@ -191,10 +198,15 @@ static const struct {
 	{0x00d, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight ETM11", "(Embedded Trace)")},
 	{0x00e, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 FBP",  "(Flash Patch and Breakpoint)")},
 	{0x101, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("System TSGEN",   "(Time Stamp Generator)")},
+	{0x471, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M0  ROM",  "(Cortex-M0 ROM)")},
 	{0x490, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-A15 GIC", "(Generic Interrupt Controller)")},
-	{0x4c7, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 PPB",  "(Private Peripheral Bus ROM Table)")},
+	{0x4c0, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M0+ ROM",  "(Cortex-M0+ ROM)")},
+	{0x4c3, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M3 ROM",  "(Cortex-M3 ROM)")},
+	{0x4c4, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M4 ROM",  "(Cortex-M4 ROM)")},
+	{0x4c7, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 PPB",  "(Cortex-M7 Private Peripheral Bus ROM Table)")},
+	{0x4c8, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 ROM",  "(Cortex-M7 ROM)")},
 	{0x906, 0x14, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight CTI",  "(Cross Trigger)")},
-	{0x907, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight ETB",  "(Trace Buffer)")},
+	{0x907, 0x21, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight ETB",  "(Trace Buffer)")},
 	{0x908, 0x12, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight CSTF", "(Trace Funnel)")},
 	{0x910, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight ETM9", "(Embedded Trace)")},
 	{0x912, 0x11, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight TPIU", "(Trace Port Interface Unit)")},
@@ -208,7 +220,7 @@ static const struct {
 	{0x924, 0x13, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M3 ETM",  "(Embedded Trace)")},
 	{0x925, 0x13, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M4 ETM",  "(Embedded Trace)")},
 	{0x930, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-R4 ETM",  "(Embedded Trace)")},
-	{0x932, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight MTB-M0+",  "(Simple Execution Trace)")},
+	{0x932, 0x31, 0x0a31, aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight MTB-M0+",  "(Simple Execution Trace)")},
 	{0x941, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight TPIU-Lite", "(Trace Port Interface Unit)")},
 	{0x950, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight Component", "(unidentified Cortex-A9 component)")},
 	{0x955, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight Component", "(unidentified Cortex-A5 component)")},
@@ -220,7 +232,7 @@ static const struct {
 	{0x975, 0x13, 0x4a13, aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 ETM",  "(Embedded Trace)")},
 	{0x9a0, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("CoreSight PMU",  "(Performance Monitoring Unit)")},
 	{0x9a1, 0x11, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M4 TPIU", "(Trace Port Interface Unit)")},
-	{0x9a9, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 TPIU", "(Trace Port Interface Unit)")},
+	{0x9a9, 0x11, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-M7 TPIU", "(Trace Port Interface Unit)")},
 	{0x9a5, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-A5 ETM",  "(Embedded Trace)")},
 	{0x9a7, 0x16, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-A7 PMU",  "(Performance Monitor Unit)")},
 	{0x9af, 0x00, 0,      aa_nosupport, cidc_unknown, PIDR_PN_BIT_STRINGS("Cortex-A15 PMU", "(Performance Monitor Unit)")},
@@ -251,13 +263,10 @@ static const struct {
 
 extern bool cortexa_probe(ADIv5_AP_t *apb, uint32_t debug_base);
 
-static void adiv5_dp_ref(ADIv5_DP_t *dp)
-{
-	dp->refcnt++;
-}
-
 void adiv5_ap_ref(ADIv5_AP_t *ap)
 {
+	if (ap->refcnt == 0)
+		ap->dp->refcnt++;
 	ap->refcnt++;
 }
 
@@ -299,13 +308,116 @@ uint64_t adiv5_ap_read_pidr(ADIv5_AP_t *ap, uint32_t addr)
 	return pidr;
 }
 
-static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, int num_entry)
+/* Prepare to read SYSROM and SYSROM PIDR
+ *
+ * Try hard to halt, if not connecting under reset
+ * Request TRCENA and default vector catch
+ * release from reset when connecting under reset.
+ *
+ * E.g. Stm32F7
+ * - fails reading romtable in WFI
+ * - fails with some AP accesses when romtable is read under reset.
+ * - fails reading some ROMTABLE entries w/o TRCENA
+ * - fails reading outside SYSROM when halted from WFI and
+ *   DBGMCU_CR not set.
+ *
+ * Keep a copy of DEMCR at startup to restore with exit, to
+ * not interrupt tracing initialed by the CPU.
+ */
+static bool cortexm_prepare(ADIv5_AP_t *ap)
+{
+	platform_timeout to ;
+	platform_timeout_set(&to, cortexm_wait_timeout);
+	uint32_t dhcsr_ctl = CORTEXM_DHCSR_DBGKEY |	CORTEXM_DHCSR_C_DEBUGEN |
+		CORTEXM_DHCSR_C_HALT;
+	uint32_t dhcsr_valid = CORTEXM_DHCSR_S_HALT | CORTEXM_DHCSR_C_DEBUGEN;
+#ifdef PLATFORM_HAS_DEBUG
+	uint32_t start_time = platform_time_ms();
+#endif
+	uint32_t dhcsr;
+	bool reset_seen = false;
+	while (true) {
+		adiv5_mem_write(ap, CORTEXM_DHCSR, &dhcsr_ctl, sizeof(dhcsr_ctl));
+		dhcsr = adiv5_mem_read32(ap, CORTEXM_DHCSR);
+		/* On a sleeping STM32F7, invalid DHCSR reads with e.g. 0xffffffff and
+		 * 0x0xA05F0000  may happen.
+		 * M23/33 will have S_SDE set when debug is allowed
+		 */
+		if ((dhcsr != 0xffffffff) && /* Invalid read */
+			((dhcsr & 0xf000fff0) == 0)) {/* Check RAZ bits */
+			if ((dhcsr & CORTEXM_DHCSR_S_RESET_ST)  && !reset_seen) {
+				if (connect_assert_srst)
+					break;
+				reset_seen = true;
+				continue;
+			}
+			if ((dhcsr & dhcsr_valid) == dhcsr_valid) { /* Halted */
+				DEBUG_INFO("Halt via DHCSR: success %08" PRIx32 " after %"
+						   PRId32 "ms\n",
+						   dhcsr, platform_time_ms() - start_time);
+			break;
+			}
+		}
+		if (platform_timeout_is_expired(&to)) {
+			DEBUG_WARN("Halt via DHCSR: Failure DHCSR %08" PRIx32 " after % "
+					   PRId32 "ms\nTry again, evt. with longer timeout or "
+					   "connect under reset\n",
+					   dhcsr, platform_time_ms() - start_time);
+			return false;
+		}
+	}
+	ap->ap_cortexm_demcr = adiv5_mem_read32(ap, CORTEXM_DEMCR);
+	uint32_t demcr = CORTEXM_DEMCR_TRCENA | CORTEXM_DEMCR_VC_HARDERR |
+		CORTEXM_DEMCR_VC_CORERESET;
+	adiv5_mem_write(ap, CORTEXM_DEMCR, &demcr, sizeof(demcr));
+	platform_timeout_set(&to, cortexm_wait_timeout);
+	platform_srst_set_val(false);
+	while (1) {
+		dhcsr = adiv5_mem_read32(ap, CORTEXM_DHCSR);
+		if (!(dhcsr & CORTEXM_DHCSR_S_RESET_ST))
+			break;
+		if (platform_timeout_is_expired(&to)) {
+			DEBUG_WARN("Error releasing from srst\n");
+			return false;
+		}
+	}
+	/* Apply device specific settings for successfull Romtable scan
+	 *
+	 * STM32F7 in WFI will not read ROMTABLE when using WFI
+	 */
+	if ((ap->dp->targetid >> 1 & 0x7ff) == 0x20) {
+		uint32_t dbgmcu_cr = 7;
+		uint32_t dbgmcu_cr_addr = 0xE0042004;
+		switch ((ap->dp->targetid >> 16) & 0xfff) {
+		case 0x449:
+		case 0x451:
+		case 0x452:
+			ap->ap_storage = adiv5_mem_read32(ap, dbgmcu_cr_addr);
+			dbgmcu_cr = ap->ap_storage | 7;
+			adiv5_mem_write(ap, dbgmcu_cr_addr, &dbgmcu_cr, sizeof(dbgmcu_cr));
+			break;
+		}
+	}
+	return true;
+}
+
+/* Return true if we find a debuggable device.*/
+static void adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, int num_entry)
 {
 	(void) num_entry;
-	addr &= ~3;
-	uint64_t pidr = adiv5_ap_read_pidr(ap, addr);
+	addr &= 0xfffff000; /* Mask out base address */
+	if (addr == 0) /* No rom table on this AP */
+		return;
 	uint32_t cidr = adiv5_ap_read_id(ap, addr + CIDR0_OFFSET);
-	bool res = false;
+	if ((cidr & ~CID_CLASS_MASK) != CID_PREAMBLE) {
+		/* Maybe caused by a not halted CortexM */
+		if ((ap->idr & 0xf) == ARM_AP_TYPE_AHB) {
+			if (!cortexm_prepare(ap))
+				return; /* Halting failed! */
+			/* CPU now halted, read cidr again. */
+			cidr = adiv5_ap_read_id(ap, addr + CIDR0_OFFSET);
+		}
+	}
 #if defined(ENABLE_DEBUG)
 	char indent[recursion + 1];
 
@@ -315,7 +427,7 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 
 	if (adiv5_dp_error(ap->dp)) {
 		DEBUG_WARN("%sFault reading ID registers\n", indent);
-		return false;
+		return;
 	}
 
 	/* CIDR preamble sanity check */
@@ -323,16 +435,19 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 		DEBUG_WARN("%s%d 0x%08" PRIx32": 0x%08" PRIx32
 			  " <- does not match preamble (0x%X)\n",
 			  indent + 1, num_entry, addr, cidr, CID_PREAMBLE);
-		return false;
+		return;
 	}
 
+	uint64_t pidr = adiv5_ap_read_pidr(ap, addr);
 	/* Extract Component ID class nibble */
 	uint32_t cid_class = (cidr & CID_CLASS_MASK) >> CID_CLASS_SHIFT;
 
 	/* ROM table */
 	if (cid_class == cidc_romtab) {
+		uint16_t designer = ((pidr >> 24) & 0xf00) | ((pidr >> 12) & 0x7f);
+		uint16_t partno = pidr & 0xfff;
+#if defined(ENABLE_DEBUG) && defined(PLATFORM_HAS_DEBUG)
 		/* Check SYSMEM bit */
-#if defined(ENABLE_DEBUG)
 		uint32_t memtype = adiv5_mem_read32(ap, addr | ADIV5_ROM_MEMTYPE) &
 			ADIV5_ROM_MEMTYPE_SYSMEM;
 
@@ -340,11 +455,16 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 			DEBUG_WARN("Fault reading ROM table entry\n");
 		}
 
-		DEBUG_INFO("ROM: Table BASE=0x%" PRIx32 " SYSMEM=0x%" PRIx32
-				   ", PIDR 0x%02" PRIx32 "%08" PRIx32 "\n", addr,
-				   memtype, (uint32_t)(pidr >> 32), (uint32_t)pidr);
+		DEBUG_INFO("ROM: Table BASE=0x%" PRIx32 " SYSMEM=0x%08" PRIx32
+				   ", designer %3x Partno %3x\n", addr, memtype, designer,
+			  partno);
 #endif
-
+		if (recursion == 0) {
+			ap->ap_designer = designer;
+			ap->ap_partno   = partno;
+			if ((ap->ap_designer == AP_DESIGNER_ATMEL) && (ap->ap_partno == 0xcd0))
+				cortexm_probe(ap);
+		}
 		for (int i = 0; i < 960; i++) {
 			adiv5_dp_error(ap->dp);
 			uint32_t entry = adiv5_mem_read32(ap, addr + i*4);
@@ -363,7 +483,7 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 			}
 
 			/* Probe recursively */
-			res |= adiv5_component_probe(
+			adiv5_component_probe(
 				ap, addr + (entry & ADIV5_ROM_ROMENTRY_OFFSET),
 				recursion + 1, i);
 		}
@@ -376,7 +496,7 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 			DEBUG_WARN("%s0x%" PRIx32 ": 0x%02" PRIx32 "%08" PRIx32
 				  " <- does not match ARM JEP-106\n",
 				  indent, addr, (uint32_t)(pidr >> 32), (uint32_t)pidr);
-			return false;
+			return;
 		}
 
 		/* ADIv6: For CoreSight components, read DEVTYPE and ARCHID */
@@ -418,11 +538,10 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 							   cidc_debug_strings[cid_class],
 							   cidc_debug_strings[pidr_pn_bits[i].cidc]);
 				}
-				res = true;
 				switch (pidr_pn_bits[i].arch) {
 				case aa_cortexm:
 					DEBUG_INFO("%s-> cortexm_probe\n", indent + 1);
-					cortexm_probe(ap, false);
+					cortexm_probe(ap);
 					break;
 				case aa_cortexa:
 					DEBUG_INFO("\n -> cortexa_probe\n");
@@ -442,7 +561,7 @@ static bool adiv5_component_probe(ADIv5_AP_t *ap, uint32_t addr, int recursion, 
 				  (uint32_t)(pidr >> 32), (uint32_t)pidr, dev_type, arch_id);
 		}
 	}
-	return res;
+	return;
 }
 
 ADIv5_AP_t *adiv5_new_ap(ADIv5_DP_t *dp, uint8_t apsel)
@@ -454,6 +573,14 @@ ADIv5_AP_t *adiv5_new_ap(ADIv5_DP_t *dp, uint8_t apsel)
 	tmpap.apsel = apsel;
 	tmpap.idr = adiv5_ap_read(&tmpap, ADIV5_AP_IDR);
 	tmpap.base = adiv5_ap_read(&tmpap, ADIV5_AP_BASE);
+	/* Check the Debug Base Address register. See ADIv5
+		 * Specification C2.6.1 */
+	if (tmpap.base == 0xffffffff) {
+		/* Debug Base Address not present in this MEM-AP */
+		/* No debug entries... useless AP */
+		/* AP0 on STM32MP157C reads 0x00000002 */
+		return NULL;
+	}
 
 	if(!tmpap.idr) /* IDR Invalid */
 		return NULL;
@@ -465,9 +592,7 @@ ADIv5_AP_t *adiv5_new_ap(ADIv5_DP_t *dp, uint8_t apsel)
 	}
 
 	memcpy(ap, &tmpap, sizeof(*ap));
-	adiv5_dp_ref(dp);
 
-	ap->base = adiv5_ap_read(ap, ADIV5_AP_BASE);
 	ap->csw = adiv5_ap_read(ap, ADIV5_AP_CSW) &
 		~(ADIV5_AP_CSW_SIZE_MASK | ADIV5_AP_CSW_ADDRINC_MASK);
 
@@ -480,15 +605,27 @@ ADIv5_AP_t *adiv5_new_ap(ADIv5_DP_t *dp, uint8_t apsel)
 	uint32_t cfg = adiv5_ap_read(ap, ADIV5_AP_CFG);
 	DEBUG_INFO("AP %3d: IDR=%08"PRIx32" CFG=%08"PRIx32" BASE=%08" PRIx32
 			   " CSW=%08"PRIx32"\n", apsel, ap->idr, cfg, ap->base, ap->csw);
+	DEBUG_INFO("AP#0 IDR = 0x%08" PRIx32 " (AHB-AP var%x rev%x)\n",
+			   ap->idr, (ap->idr >> 4) & 0xf, ap->idr >> 28);
 #endif
+	adiv5_ap_ref(ap);
 	return ap;
 }
 
 void adiv5_dp_init(ADIv5_DP_t *dp)
 {
-	volatile bool probed = false;
+#define DPIDR_PARTNO_MASK 0x0ff00000
+/* Check IDCODE for a valid designer and sensible PARTNO*/
+	if (((dp->idcode & 0xfff) == 0)  ||
+		((dp->idcode & DPIDR_PARTNO_MASK)) == DPIDR_PARTNO_MASK) {
+		DEBUG_WARN("Invalid DP idcode %08" PRIx32 "\n", dp->idcode);
+		free(dp);
+		return;
+	}
+	DEBUG_INFO("DPIDR 0x%08" PRIx32 " (v%d %srev%d)\n", dp->idcode,
+			   (dp->idcode >> 12) & 0xf,
+			   (dp->idcode & 0x10000) ? "MINDP " : "", dp->idcode >> 28);
 	volatile uint32_t ctrlstat = 0;
-	adiv5_dp_ref(dp);
 #if PC_HOSTED  == 1
 	platform_adiv5_dp_defaults(dp);
 	if (!dp->ap_write)
@@ -531,10 +668,10 @@ void adiv5_dp_init(ADIv5_DP_t *dp)
 			break;
 		if (platform_timeout_is_expired(&timeout)) {
 			DEBUG_INFO("DEBUG Power-Up failed\n");
+			free(dp); /* No AP that referenced this DP so long*/
 			return;
 		}
 	}
-
 	/* This AP reset logic is described in ADIv5, but fails to work
 	 * correctly on STM32.	CDBGRSTACK is never asserted, and we
 	 * just wait forever.  This scenario is described in B2.4.1
@@ -561,8 +698,7 @@ void adiv5_dp_init(ADIv5_DP_t *dp)
 		}
 	}
 
-	uint32_t dp_idcode = adiv5_dp_read(dp, ADIV5_DP_IDCODE);
-	if ((dp_idcode & ADIV5_DP_VERSION_MASK) == ADIV5_DPv2) {
+	if ((dp->idcode & ADIV5_DP_VERSION_MASK) == ADIV5_DPv2) {
 		/* Read TargetID. Can be done with device in WFI, sleep or reset!*/
 		adiv5_dp_write(dp, ADIV5_DP_SELECT, ADIV5_DP_BANK2);
 		dp->targetid = adiv5_dp_read(dp, ADIV5_DP_CTRLSTAT);
@@ -572,6 +708,7 @@ void adiv5_dp_init(ADIv5_DP_t *dp)
 	/* Probe for APs on this DP */
 	uint32_t last_base = 0;
 	int void_aps = 0;
+	dp->refcnt++;
 	for(int i = 0; (i < 256) && (void_aps < 8); i++) {
 		ADIv5_AP_t *ap = NULL;
 #if PC_HOSTED == 1
@@ -586,10 +723,12 @@ void adiv5_dp_init(ADIv5_DP_t *dp)
 			if (dp->ap_cleanup)
 				dp->ap_cleanup(i);
 #endif
-			if (i == 0)
+			if (i == 0) {
+				adiv5_dp_unref(dp);
 				return;
-			else
+			} else {
 				continue;
+			}
 		}
 		if (ap->base == last_base) {
 			DEBUG_WARN("AP %d: Duplicate base\n", i);
@@ -597,7 +736,8 @@ void adiv5_dp_init(ADIv5_DP_t *dp)
 			if (dp->ap_cleanup)
 				dp->ap_cleanup(i);
 #endif
-			free(ap);
+			adiv5_ap_unref(ap);
+			adiv5_dp_unref(dp);
 			/* FIXME: Should we expect valid APs behind duplicate ones? */
 			return;
 		}
@@ -611,28 +751,18 @@ void adiv5_dp_init(ADIv5_DP_t *dp)
 		extern void efm32_aap_probe(ADIv5_AP_t *);
 		efm32_aap_probe(ap);
 
-		/* Check the Debug Base Address register. See ADIv5
-		 * Specification C2.6.1 */
-		if (!(ap->base & ADIV5_AP_BASE_PRESENT) ||
-			(ap->base == 0xffffffff)) {
-			/* Debug Base Address not present in this MEM-AP */
-			/* No debug entries... useless AP */
-			adiv5_ap_unref(ap);
-			continue;
-		}
-
 		/* Should probe further here to make sure it's a valid target.
 		 * AP should be unref'd if not valid.
 		 */
 
 		/* The rest should only be added after checking ROM table */
-		probed |= adiv5_component_probe(ap, ap->base, 0, 0);
-		if (!probed && (dp->idcode & 0xfff) == 0x477) {
-			DEBUG_INFO("-> cortexm_probe forced\n");
-			cortexm_probe(ap, true);
-			probed = true;
-		}
+		adiv5_component_probe(ap, ap->base, 0, 0);
+		adiv5_ap_unref(ap);
 	}
+	/* We halted at least CortexM for Romtable scan.
+	 * Release the devices now. Attach() will halt them again.*/
+	for (target *t = target_list; t; t = t->next)
+		target_halt_resume(t, false);
 	adiv5_dp_unref(dp);
 }
 
